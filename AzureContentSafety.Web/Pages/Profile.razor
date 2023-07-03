@@ -1,0 +1,91 @@
+﻿@page "/profile"
+
+@using AzureContentSafety.Domain.Results;
+@using AzureContentSafety.Domain.Services
+@using System
+@using System.IO
+@using Microsoft.AspNetCore.Hosting
+@using Microsoft.Extensions.Logging
+@inject ILogger<Forums> Logger
+@inject IWebHostEnvironment Environment
+@inject ImageAnalysisService ImageAnalysisService;
+
+<PageTitle>Profile</PageTitle>
+
+<h4>Upload avatar</h4>
+<form>
+    <div class="mb-3">
+        <label for="file" class="form-label">Please choose an appropriate image</label>
+        <InputFile id="file" class="form-control form-control-lg" OnChange="@LoadFiles" multiple />
+    </div>
+    
+    <div>
+        @if (isLoading)
+        {
+            <p class="alert alert-info">Uploading...</p>
+        }
+        else
+        {
+            @if (loadedFiles.Any())
+            {
+                <div class="alert alert-info">
+                    <ul>
+                        @foreach (var file in loadedFiles)
+                        {
+                            <li>
+                                <ul>
+                                    <li>Name: @file.Name</li>
+                                    <li>Last modified: @file.LastModified.ToString()</li>
+                                    <li>Size (bytes): @file.Size</li>
+                                    <li>Content type: @file.ContentType</li>
+                                </ul>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+    </div>
+</form>
+
+@if (outputText != null)
+{
+    <p class="alert alert-primary mt-4">@outputText</p>
+}
+
+
+@code {
+    private List<IBrowserFile> loadedFiles = new();
+    private bool isLoading;
+    private string? outputText;
+
+    private async Task LoadFiles(InputFileChangeEventArgs e)
+    {
+        isLoading = true;
+        loadedFiles.Clear();
+
+        foreach (var file in e.GetMultipleFiles())
+        {
+            try
+            {
+                loadedFiles.Add(file);               
+                using MemoryStream ms = new();
+                await file.OpenReadStream().CopyToAsync(ms);
+                var bytes = ms.ToArray();
+                var base64String = Convert.ToBase64String(bytes);
+                Decision decision = await ImageAnalysisService.AnalyzeImage(base64String);
+
+                outputText += $"{file.Name}: {decision.ToString()}";
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("File: {Filename} Error: {Error}",
+                    file.Name, ex.Message);
+                outputText = $"{ex.Message}";
+            }
+        }
+
+        isLoading = false;
+    }
+}
+

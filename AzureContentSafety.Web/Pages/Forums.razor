@@ -1,0 +1,54 @@
+﻿@page "/forums"
+
+@using AzureContentSafety.Domain.Services
+@using System
+@using System.IO
+@using Microsoft.AspNetCore.Hosting
+@using Microsoft.Extensions.Logging
+@*@inject ILogger<Forums> Logger*@
+@inject IWebHostEnvironment Environment
+@inject TextAnalysisService DemoService
+
+<PageTitle>Forums</PageTitle>
+
+<h4>Create post</h4>
+<div class="form-group">
+    <textarea class="form-control" rows="3" maxlength="1000" @bind="inputValue"></textarea>
+</div>
+<div class="mt-4">
+    <button class="btn btn-primary" @onclick="ValidateMessage">Share</button>
+</div>
+
+@if (outputText != null)
+{
+    <p class="alert alert-primary mt-4">@outputText</p>
+}
+
+@code {
+    private string? inputValue;
+    private string? outputText;
+
+    private async Task ValidateMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(inputValue))
+        {
+            var decision = await DemoService.AnalyzeText(inputValue);
+            outputText = $"{decision.ToString()}";
+        }
+    }
+}
+@*
+<h1>Counter</h1>
+
+<p role="status">Current count: @currentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private int currentCount = 0;
+
+    private void IncrementCount()
+    {
+        currentCount++;
+    }
+}*@
